@@ -1,0 +1,53 @@
+{
+ "targets": 400,
+ "nontargets": 250404,
+ "EER": 0.0153,
+ "EER_threshold": 0.6311,
+ "target_scores": {
+  "mean": 0.865,
+  "p5": 0.736
+ },
+ "nontarget_scores": {
+  "mean": 0.392,
+  "p99": 0.65,
+  "max": 0.96
+ },
+ "operating_points": {
+  "FAR 1.00%": {
+   "threshold": 0.6505,
+   "FRR": 0.02
+  },
+  "FAR 0.10%": {
+   "threshold": 0.8744,
+   "FRR": 0.4175
+  },
+  "FAR 0.01%": {
+   "threshold": 0.9422,
+   "FRR": 0.9375
+  }
+ },
+ "calls": 400,
+ "min_dur": 4.0,
+ "excluding_near_calls": {
+  "near_window": 100,
+  "nontargets": 249132,
+  "EER": 0.0146,
+  "EER_threshold": 0.6303,
+  "nontarget_mean": 0.391,
+  "nontarget_max": 0.949,
+  "operating_points": {
+   "FAR 1.00%": {
+    "threshold": 0.6437,
+    "FRR": 0.0175
+   },
+   "FAR 0.10%": {
+    "threshold": 0.7366,
+    "FRR": 0.0575
+   },
+   "FAR 0.01%": {
+    "threshold": 0.8855,
+    "FRR": 0.5125
+   }
+  }
+ }
+}

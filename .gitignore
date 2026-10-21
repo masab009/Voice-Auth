@@ -1,0 +1,16 @@
+# downloaded by download_models.sh
+repo/
+models/
+# enrolled voices, test clips and logs are personal (biometric) data: never commit them
+data/
+*.log
+app.log
+cloudflared.log
+calib/*.npz
+calib/top_nontargets.json
+# environment and caches
+.venv
+tmp/
+__pycache__/
+*.pyc
+config.json

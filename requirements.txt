@@ -1,0 +1,20 @@
+# Python 3.12. Install torch for your CUDA first (https://pytorch.org), e.g.
+#   pip install torch==2.9.1 --index-url https://download.pytorch.org/whl/cu128
+# then: pip install -r requirements.txt
+# Tested versions; the model's own transformers fork is loaded from repo/ (download_models.sh), so `transformers`
+# itself is not needed, only the libraries that fork imports.
+torch>=2.2
+peft==0.21.0
+flask==3.1.3
+numpy==2.2.6
+pandas==3.0.6          # calib_helpline.py only
+safetensors==0.7.0
+tokenizers==0.22.2
+huggingface-hub==0.36.0
+pyyaml==6.0.3
+regex==2025.11.3
+requests==2.32.5
+tqdm==4.67.1
+packaging==25.0
+filelock==3.20.3
+# system: ffmpeg (audio decoding); optional: cloudflared (tunnel.sh)

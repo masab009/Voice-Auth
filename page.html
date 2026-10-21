@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice Authentication</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1d2330;--mut:#667085;--line:#e3e6eb;--acc:#2f5bd3;--ok:#13824b;--okbg:#e5f5ec;--bad:#c4321f;--badbg:#fdebe8;--warn:#9a6700;--warnbg:#fff4d6;--rec:#d92d20}
+@media (prefers-color-scheme:dark){:root{--bg:#12151b;--card:#1b2029;--ink:#e6e9ef;--mut:#98a2b3;--line:#2c3340;--acc:#7c9cff;--ok:#5fd394;--okbg:#14301f;--bad:#ff8a7a;--badbg:#3a1712;--warn:#f2c661;--warnbg:#33290f;--rec:#ff5b4d}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:18px 16px 0;max-width:860px;margin:auto}
+h1{font-size:20px;margin:0}
+.mut{color:var(--mut);font-size:13px}
+nav{display:flex;gap:4px;flex-wrap:wrap;margin:14px 0 0;border-bottom:1px solid var(--line)}
+nav button{background:none;border:0;padding:9px 14px;color:var(--mut);font:inherit;cursor:pointer;border-bottom:2px solid transparent}
+nav button.on{color:var(--ink);border-color:var(--acc);font-weight:600}
+main{max-width:860px;margin:auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+label{display:block;font-weight:600;margin:0 0 6px}
+input[type=text],input[type=number],select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);width:100%;max-width:360px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0}
+button.b{font:inherit;padding:8px 14px;border-radius:7px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button.p{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+button.b:disabled{opacity:.5;cursor:default}
+.rec{display:inline-flex;align-items:center;gap:8px;font:inherit;font-weight:600;padding:10px 18px;border-radius:999px;border:2px solid var(--rec);background:var(--card);color:var(--rec);cursor:pointer}
+.rec .dot{width:12px;height:12px;border-radius:50%;background:var(--rec)}
+.rec.on{background:var(--rec);color:#fff}.rec.on .dot{background:#fff;animation:bl 1s infinite}
+@keyframes bl{50%{opacity:.2}}
+.clips{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.clip{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
+.clip audio{height:32px;max-width:260px}
+.x{border:0;background:none;color:var(--mut);cursor:pointer;font-size:16px}
+.res{margin-top:12px;padding:14px;border-radius:9px;border:1px solid var(--line)}
+.res.accept{background:var(--okbg);border-color:var(--ok)}.res.reject{background:var(--badbg);border-color:var(--bad)}
+.big{font-size:22px;font-weight:700}.accept .big{color:var(--ok)}.reject .big{color:var(--bad)}
+.warn{background:var(--warnbg);color:var(--warn);padding:6px 10px;border-radius:6px;font-size:13px;margin-top:6px}
+.err{color:var(--bad);font-size:13px;margin-top:8px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+td,th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase}
+.bar{height:8px;background:var(--line);border-radius:4px;position:relative;margin-top:8px}
+.bar i{position:absolute;top:0;bottom:0;left:0;border-radius:4px;background:var(--acc)}
+.bar b{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink)}
+.hide{display:none}
+code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Voice authentication</h1>
+  <div class="mut">w2v-BERT 2.0 · LoRA-Adapter-MFA · large-margin fine-tuned (0.14% EER on VoxCeleb1-O) · runs locally on this machine's GPU</div>
+  <nav id="nav">
+    <button data-t="enroll" class="on">1. Enroll</button>
+    <button data-t="verify">2. Verify</button>
+    <button data-t="identify">Identify</button>
+    <button data-t="compare">Compare two clips</button>
+    <button data-t="speakers">Speakers &amp; settings</button>
+  </nav>
+</header>
+<main>
+
+<section id="t-enroll">
+  <div class="card">
+    <label>Speaker name</label>
+    <input type="text" id="en-name" placeholder="e.g. ali_khan" list="spk-list">
+    <div class="mut" style="margin-top:6px">Enroll 3 or more clips of at least 5 s of speech each, ideally recorded at different times. Using an existing name adds clips to that speaker.</div>
+    <div class="row" id="en-rec"></div>
+    <div class="clips" id="en-clips"></div>
+    <div class="row"><button class="b p" id="en-go" disabled>Enroll</button></div>
+    <div id="en-out"></div>
+  </div>
+</section>
+
+<section id="t-verify" class="hide">
+  <div class="card">
+    <label>Who is speaking (claimed identity)?</label>
+    <select id="ve-name"></select>
+    <div class="row" id="ve-rec"></div>
+    <div class="clips" id="ve-clips"></div>
+    <div class="row"><button class="b p" id="ve-go" disabled>Verify</button></div>
+    <div id="ve-out"></div>
+  </div>
+</section>
+
+<section id="t-identify" class="hide">
+  <div class="card">
+    <div class="mut">Compares one clip against every enrolled speaker.</div>
+    <div class="row" id="id-rec"></div>
+    <div class="clips" id="id-clips"></div>
+    <div class="row"><button class="b p" id="id-go" disabled>Identify</button></div>
+    <div id="id-out"></div>
+  </div>
+</section>
+
+<section id="t-compare" class="hide">
+  <div class="card">
+    <label>Clip A</label><div class="row" id="ca-rec"></div><div class="clips" id="ca-clips"></div>
+    <label style="margin-top:12px">Clip B</label><div class="row" id="cb-rec"></div><div class="clips" id="cb-clips"></div>
+    <div class="row"><button class="b p" id="cmp-go" disabled>Compare</button></div>
+    <div id="cmp-out"></div>
+  </div>
+</section>
+
+<section id="t-speakers" class="hide">
+  <div class="card">
+    <label>Decision threshold (cosine similarity)</label>
+    <div class="row"><input type="number" id="thr" step="0.01" min="-1" max="1" style="width:120px">
+      <button class="b" id="thr-save">Save</button><span class="mut" id="thr-msg"></span></div>
+    <div class="mut">Scores at or above the threshold are accepted. Raise it for fewer false accepts, lower it for fewer false rejects. See GUIDE.md for how it was chosen.</div>
+  </div>
+  <div class="card"><table><thead><tr><th>Speaker</th><th>Clips</th><th>Speech</th><th>Updated</th><th></th></tr></thead><tbody id="spk-rows"></tbody></table></div>
+</section>
+<datalist id="spk-list"></datalist>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+let CFG = {threshold: .3}, SPEAKERS = [];
+
+document.querySelectorAll('#nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#nav button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('main > section').forEach(s => s.classList.toggle('hide', s.id !== 't-' + b.dataset.t));
+  if (b.dataset.t === 'speakers' || b.dataset.t === 'verify') loadSpeakers();
+});
+
+// A clip picker: record with the mic or choose files. multi=true keeps several clips.
+function picker(recId, listId, multi, onChange) {
+  const st = {clips: []};
+  const box = $('#' + recId);
+  box.innerHTML = `<button class="rec"><span class="dot"></span><span class="lbl">Record</span><span class="t"></span></button>
+    <label class="b" style="font-weight:400;margin:0;cursor:pointer">or choose file${multi ? 's' : ''}<input type="file" accept="audio/*" ${multi ? 'multiple' : ''} hidden></label>`;
+  const btn = box.querySelector('.rec'), inp = box.querySelector('input');
+  let mr = null, chunks = [], t0 = 0, tick = null;
+  const render = () => {
+    $('#' + listId).innerHTML = st.clips.map((c, i) => `<div class="clip"><audio controls src="${c.url}"></audio>
+      <span>${c.name}</span><button class="x" data-i="${i}" title="remove">✕</button></div>`).join('');
+    $('#' + listId).querySelectorAll('.x').forEach(x => x.onclick = () => { st.clips.splice(+x.dataset.i, 1); render(); onChange(); });
+  };
+  const add = (blob, name) => {
+    const c = {blob, name, url: URL.createObjectURL(blob)};
+    if (multi) st.clips.push(c); else st.clips = [c];
+    render(); onChange();
+  };
+  inp.onchange = () => { [...inp.files].forEach(f => add(f, f.name)); inp.value = ''; };
+  btn.onclick = async () => {
+    if (mr && mr.state === 'recording') { mr.stop(); return; }
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({audio: {echoCancellation: false, noiseSuppression: false, autoGainControl: true}}); }
+    catch (e) { alert('Microphone not available: ' + e.message); return; }
+    chunks = []; mr = new MediaRecorder(stream);
+    mr.ondataavailable = e => chunks.push(e.data);
+    mr.onstop = () => {
+      stream.getTracks().forEach(t => t.stop()); clearInterval(tick);
+      btn.classList.remove('on'); btn.querySelector('.lbl').textContent = multi && st.clips.length ? 'Record another' : 'Record';
+      btn.querySelector('.t').textContent = '';
+      add(new Blob(chunks, {type: mr.mimeType}), `recording ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+      btn.querySelector('.lbl').textContent = multi ? 'Record another' : 'Record again';
+    };
+    mr.start(); t0 = Date.now();
+    btn.classList.add('on'); btn.querySelector('.lbl').textContent = 'Stop';
+    tick = setInterval(() => btn.querySelector('.t').textContent = ((Date.now() - t0) / 1000).toFixed(0) + ' s', 250);
+  };
+  st.reset = () => { st.clips = []; render(); onChange(); btn.querySelector('.lbl').textContent = 'Record'; };
+  return st;
+}
+
+async function post(url, fd) {
+  const r = await fetch(url, {method: 'POST', body: fd});
+  const j = await r.json().catch(() => ({error: r.statusText}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+const warn = i => i.warning ? `<div class="warn">${i.warning}</div>` : '';
+const pct = s => Math.max(0, Math.min(100, (s + 0.2) / 1.2 * 100));  // bar from -0.2 to 1.0
+const bar = s => `<div class="bar"><i style="width:${pct(s)}%"></i><b style="left:${pct(CFG.threshold)}%" title="threshold"></b></div>`;
+const busy = (btn, on, label) => { btn.disabled = on; btn.textContent = on ? 'Working…' : label; };
+
+// enroll
+const en = picker('en-rec', 'en-clips', true, () => $('#en-go').disabled = !en.clips.length);
+$('#en-go').onclick = async () => {
+  const fd = new FormData(); fd.append('name', $('#en-name').value);
+  en.clips.forEach((c, i) => fd.append('audio', c.blob, `clip${i}`));
+  busy($('#en-go'), true);
+  try {
+    const j = await post('/api/enroll', fd);
+    $('#en-out').innerHTML = `<div class="res"><b>${j.name}</b> now has ${j.clips} enrollment clip${j.clips > 1 ? 's' : ''}.
+      ${j.consistency !== null ? `<div class="mut">Lowest similarity between two enrollment clips: ${j.consistency.toFixed(3)} ${j.consistency < CFG.threshold ? '— below the threshold: one clip may be noisy or a different voice' : '(consistent)'}</div>` : ''}
+      ${j.added.map(a => `<div class="mut">${a.file}: ${a.duration_s} s, ~${a.speech_s} s speech</div>${warn(a)}`).join('')}</div>`;
+    en.reset(); loadSpeakers();
+  } catch (e) { $('#en-out').innerHTML = `<div class="err">${e.message}</div>`; }
+  busy($('#en-go'), false, 'Enroll'); $('#en-go').disabled = !en.clips.length;
+};
+
+// verify
+const ve = picker('ve-rec', 've-clips', false, () => $('#ve-go').disabled = !ve.clips.length || !$('#ve-name').value);
+$('#ve-go').onclick = async () => {
+  const fd = new FormData(); fd.append('name', $('#ve-name').value); fd.append('audio', ve.clips[0].blob, 'test');
+  busy($('#ve-go'), true);
+  try {
+    const j = await post('/api/verify', fd);
+    $('#ve-out').innerHTML = `<div class="res ${j.decision}"><div class="big">${j.decision === 'accept' ? '✓ Accepted' : '✕ Rejected'}</div>
+      <div>Score <b>${j.score.toFixed(3)}</b> vs threshold ${j.threshold.toFixed(2)} for <b>${j.name}</b></div>${bar(j.score)}
+      <div class="mut" style="margin-top:8px">Against each enrollment clip: ${j.per_clip.map(s => s.toFixed(3)).join(', ')} · ${j.duration_s} s audio, ~${j.speech_s} s speech · ${j.embed_ms} ms</div>${warn(j)}</div>`;
+  } catch (e) { $('#ve-out').innerHTML = `<div class="err">${e.message}</div>`; }
+  busy($('#ve-go'), false, 'Verify'); $('#ve-go').disabled = !ve.clips.length;
+};
+$('#ve-name').onchange = () => $('#ve-go').disabled = !ve.clips.length || !$('#ve-name').value;
+
+// identify
+const idp = picker('id-rec', 'id-clips', false, () => $('#id-go').disabled = !idp.clips.length);
+$('#id-go').onclick = async () => {
+  const fd = new FormData(); fd.append('audio', idp.clips[0].blob, 'test');
+  busy($('#id-go'), true);
+  try {
+    const j = await post('/api/identify', fd);
+    $('#id-out').innerHTML = `<div class="res ${j.match ? 'accept' : 'reject'}"><div class="big">${j.match ? 'Best match: ' + j.match : 'No enrolled speaker above the threshold'}</div>
+      <table style="margin-top:8px"><tbody>${j.ranking.map(r => `<tr><td>${r.name}</td><td style="width:70px">${r.score.toFixed(3)}</td><td style="width:45%">${bar(r.score)}</td></tr>`).join('')}</tbody></table>${warn(j)}</div>`;
+  } catch (e) { $('#id-out').innerHTML = `<div class="err">${e.message}</div>`; }
+  busy($('#id-go'), false, 'Identify'); $('#id-go').disabled = !idp.clips.length;
+};
+
+// compare
+const cmpOk = () => $('#cmp-go').disabled = !(ca.clips.length && cb.clips.length);
+const ca = picker('ca-rec', 'ca-clips', false, () => cmpOk()), cb = picker('cb-rec', 'cb-clips', false, () => cmpOk());
+$('#cmp-go').onclick = async () => {
+  const fd = new FormData(); fd.append('a', ca.clips[0].blob, 'a'); fd.append('b', cb.clips[0].blob, 'b');
+  busy($('#cmp-go'), true);
+  try {
+    const j = await post('/api/compare', fd);
+    $('#cmp-out').innerHTML = `<div class="res ${j.decision}"><div class="big">${j.same_speaker ? 'Same speaker' : 'Different speakers'}</div>
+      <div>Score <b>${j.score.toFixed(3)}</b> vs threshold ${j.threshold.toFixed(2)}</div>${bar(j.score)}${warn(j.a)}${warn(j.b)}</div>`;
+  } catch (e) { $('#cmp-out').innerHTML = `<div class="err">${e.message}</div>`; }
+  busy($('#cmp-go'), false, 'Compare'); cmpOk();
+};
+
+// speakers & settings
+async function loadSpeakers() {
+  SPEAKERS = await (await fetch('/api/speakers')).json();
+  const cur = $('#ve-name').value;
+  $('#ve-name').innerHTML = SPEAKERS.length ? SPEAKERS.map(s => `<option ${s.name === cur ? 'selected' : ''}>${s.name}</option>`).join('') : '<option value="">(enroll someone first)</option>';
+  $('#spk-list').innerHTML = SPEAKERS.map(s => `<option value="${s.name}">`).join('');
+  $('#spk-rows').innerHTML = SPEAKERS.map(s => `<tr><td>${s.name}</td><td>${s.clips}</td><td>${s.speech_s} s</td><td class="mut">${s.updated}</td>
+    <td><button class="b" data-n="${s.name}">Delete</button></td></tr>`).join('') || '<tr><td colspan="5" class="mut">Nobody enrolled yet.</td></tr>';
+  $('#spk-rows').querySelectorAll('button').forEach(b => b.onclick = async () => {
+    if (b.textContent !== 'Confirm?') { b.textContent = 'Confirm?'; return; }
+    await fetch('/api/speakers/' + encodeURIComponent(b.dataset.n), {method: 'DELETE'}); loadSpeakers();
+  });
+  $('#ve-go').disabled = !ve.clips.length || !$('#ve-name').value;
+}
+async function loadConfig() { CFG = await (await fetch('/api/config')).json(); $('#thr').value = CFG.threshold; }
+$('#thr-save').onclick = async () => {
+  const r = await fetch('/api/config', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({threshold: +$('#thr').value})});
+  CFG = await r.json(); $('#thr-msg').textContent = 'saved: ' + CFG.threshold;
+};
+loadConfig(); loadSpeakers();
+</script>
+</body>
+</html>
